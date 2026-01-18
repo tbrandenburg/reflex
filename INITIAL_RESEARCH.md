@@ -96,6 +96,79 @@ reflex stop <run-id>
 - Long-term plan: a marvellous TUI layered on the same core
 - Provides a stable contract for running, inspecting, and compensating workflows
 
+### Architecture Diagrams (Mermaid)
+
+#### System Context Diagram
+
+```mermaid
+flowchart LR
+  user["User / Developer\nDesigns workflows and executes runs"]
+  platform["Workflow Platform\nVisual workflow authoring and reliable execution"]
+  cli["reflex CLI\nHeadless execution interface"]
+  temporal["Temporal\nWorkflow orchestration engine"]
+  otel["Observability Backend\nOpenTelemetry / OTLP backend"]
+  external["External Services & Agents\nHTTP APIs, ACP agents, A2A endpoints"]
+
+  user -->|Designs workflows, runs executions| platform
+  user -->|Executes and inspects runs| cli
+  cli -->|Executes workflows\nAPI / gRPC| platform
+  platform -->|Orchestrates workflows\nSDK / gRPC| temporal
+  platform -->|Emits telemetry\nOTLP| otel
+  platform -->|Invokes\nHTTP / ACP| external
+```
+
+#### Container Diagram
+
+```mermaid
+flowchart LR
+  user["User / Developer"]
+  ui["Web UI\nReact + TypeScript + XYFlow\nWorkflow authoring, validation, execution control"]
+  cli["reflex CLI\nTypeScript\nHeadless execution interface"]
+  api["API Service\nPython + FastAPI\nWorkflow persistence, compilation, execution control"]
+  worker["Temporal Worker\nPython\nExecutes workflow activities and sub-workflows"]
+  store[("Workflow Store\nYAML / JSON\nCanonical Serverless Workflow definitions")]
+  temporal["Temporal\nWorkflow orchestration"]
+  otel["Observability Backend\nOTLP"]
+
+  user -->|Uses\nHTTPS| ui
+  user -->|Uses\nCLI| cli
+  ui -->|Calls\nJSON / REST| api
+  cli -->|Calls\nJSON / REST| api
+  api -->|Reads/Writes\nFilesystem / DB| store
+  api -->|Starts workflows\ngRPC| temporal
+  temporal -->|Schedules activities\ngRPC| worker
+  api -->|Emits traces\nOTLP| otel
+  worker -->|Emits traces\nOTLP| otel
+```
+
+#### API Service Component Diagram
+
+```mermaid
+flowchart LR
+  workflow_api["Workflow API\nFastAPI\nCRUD for workflows and workflow runs"]
+  compile_service["Compile Service\nPython\nValidates graphs and compiles to Serverless Workflow DSL"]
+  execution_service["Execution Service\nPython\nStarts workflow executions in Temporal"]
+  schema_service["Schema Service\nPython\nGenerates JSON Schema from Pydantic models"]
+
+  workflow_api -->|Uses| compile_service
+  workflow_api -->|Uses| execution_service
+  compile_service -->|Uses| schema_service
+```
+
+#### Temporal Worker Component Diagram
+
+```mermaid
+flowchart LR
+  activity_runner["Activity Runner\nPython\nRuntime-agnostic node execution"]
+  container_runtime["Container Runtime Adapter\nDocker / OCI\nExecutes container-based nodes"]
+  host_runtime["Host Runtime Adapter\nPython\nExecutes host-based nodes (DEV_MODE only)"]
+  subworkflow_executor["Sub-workflow Executor\nTemporal Child Workflow\nExecutes sub-workflow DAGs"]
+
+  activity_runner -->|Delegates to| container_runtime
+  activity_runner -->|Delegates to| host_runtime
+  activity_runner -->|Invokes| subworkflow_executor
+```
+
 ---
 
 ## 4. Canonical Workflow Definition & Persistence
