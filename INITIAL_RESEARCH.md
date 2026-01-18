@@ -46,13 +46,13 @@ Design intent:
 
 ### Core
 - React + TypeScript
-- **XYFlow (`@xyflow/react`)**
+- **[XYFlow](https://xyflow.com/) (`@xyflow/react`)**
   - DAG editor
   - Custom nodes and handles
   - Two edge types: **control flow** vs **data flow**
 
 ### Layout
-- ELK (Eclipse Layout Kernel via `elkjs`)
+- [ELK](https://www.eclipse.org/elk/) (Eclipse Layout Kernel via `elkjs`)
   - Port-aware layout
   - Edge-crossing minimization
   - Deterministic re-layout
@@ -71,14 +71,36 @@ Design intent:
 - Inline logs and node-level status
 
 ### Telemetry
-- OpenTelemetry JS
+- [OpenTelemetry JS](https://opentelemetry.io/docs/languages/js/)
 - Trace propagation on workflow execution
+
+### CLI
+
+Workflow execution and control is exposed via a headless CLI that acts as the another execution interface 
+in addition to the web frontend.
+`reflex` can be invoked by humans, automation, or higher-level systems and provides a stable contract for
+starting, inspecting, replaying, and compensating workflow runs.
+
+```
+reflex # Opens the main TUI
+reflex run <workflow>
+reflex plan <workflow>
+reflex validate <workflow>
+reflex trace <run-id>
+reflex replay <run-id>
+reflex compensate <run-id>
+reflex stop <run-id>
+```
+
+- TypeScript-based headless CLI for execution control with **[OpenTUI](https://github.com/anomalyco/opentui) (`@opentui/core`)**
+- Long-term plan: a marvellous TUI layered on the same core
+- Provides a stable contract for running, inspecting, and compensating workflows
 
 ---
 
 ## 4. Canonical Workflow Definition & Persistence
 
-- **Serverless Workflow Specification**
+- **[Serverless Workflow Specification](https://serverlessworkflow.io/)**
   - YAML / JSON
   - Stored verbatim as canonical truth
 - UI metadata stored separately:
@@ -96,7 +118,7 @@ Execution runtime and distribution hints are **metadata**, not workflow semantic
 ## 5. Backend — Core Platform (Python)
 
 ### Domain Modeling
-- **Pydantic v2** everywhere at boundaries
+- **[Pydantic v2](https://docs.pydantic.dev/)** everywhere at boundaries
 
 Pydantic models define:
 - Node parameters
@@ -133,13 +155,25 @@ Design constraints:
 
 ## 7. Workflow Execution Engine
 
-- **Temporal (Python SDK)**
+- **[Temporal](https://docs.temporal.io/) (Python SDK)**
 
 Execution model:
 - One workflow per DAG run
 - Deterministic orchestration only
 - No I/O, randomness, or time access
 - All work done in activities or child workflows
+
+### Transaction Semantics — Saga Pattern
+
+Workflow execution follows the **Saga pattern**.
+
+- Each node represents a **forward action**
+- Nodes may optionally define a **compensation action**
+- Compensation actions are executed in reverse order upon failure
+- Compensation is explicit, not implicit
+
+There is no global transaction and no automatic rollback.
+Failure handling is modeled as business logic, not infrastructure behavior.
 
 Controllers:
 - foreach / map / retry / condition
@@ -223,7 +257,7 @@ Templates interpolate values only.
 
 ## 12. Observability & Telemetry
 
-- OpenTelemetry end-to-end
+- [OpenTelemetry](https://opentelemetry.io/docs/) end-to-end
 - One trace per workflow run
 - One span per node
 - Consistent attributes (workflow ID, run ID, node ID, runtime)
@@ -451,6 +485,10 @@ Scope creep | Hard MVP limits; explicit deferrals |
 - Prove observability
 - Prove distribution via task queues
 
+### Headless Execution Interface (reflex)
+
+- MVP CLI scope is basic and includes `run`, `plan`, `validate`, and `stop`
+
 ### MVP Stack (Simplest & Safest)
 - XYFlow + ELK
 - Python backend
@@ -538,6 +576,9 @@ Exit criteria:
 ---
 
 ## 18. Architectural Rules (Authoritative)
+
+X. **Saga-Based Failure Handling**  
+   Workflow execution follows the **Saga pattern**. Forward actions and compensations are explicit, modeled as standard activities, and orchestrated deterministically. There is no implicit rollback or global transaction.
 
 1. **Canonical Truth**  
    Serverless Workflow DSL is the canonical workflow representation.
