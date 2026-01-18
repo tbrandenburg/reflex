@@ -1,6 +1,6 @@
-# Workflow Platform — Final Tech Stack, Architectural Rules, Rollout Plan, Test Strategy & Risk Analysis
+# reflex Workflow Platform — Final Tech Stack, Architectural Rules, Rollout Plan, Test Strategy & Risk Analysis
 
-This document defines the **complete, authoritative system design** for the workflow platform, including:
+This document defines the **complete, authoritative system design** for the workflow platform **reflex**, including:
 
 - Final tech stack
 - Architectural rules
