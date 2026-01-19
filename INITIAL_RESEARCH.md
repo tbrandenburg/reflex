@@ -650,50 +650,240 @@ Exit criteria:
 
 ## 18. Architectural Rules (Authoritative)
 
-X. **Saga-Based Failure Handling**  
-   Workflow execution follows the **Saga pattern**. Forward actions and compensations are explicit, modeled as standard activities, and orchestrated deterministically. There is no implicit rollback or global transaction.
+This chapter defines **binding architectural rules**.  
+All platform components, features, and extensions MUST comply.
 
-1. **Canonical Truth**  
-   Serverless Workflow DSL is the canonical workflow representation.
+Where ambiguity exists, rules favor **determinism, explicitness, and auditability** over convenience.
 
-2. **Container-First, Not Container-Only**  
-   Containers are default; host execution is an explicit, validated exception (dev-only initially).
+---
 
-3. **Pydantic at All Boundaries**  
-   Anything crossing a system boundary must be a Pydantic model.
+### 18.1 Saga-Based Failure Handling
+Workflow execution follows the **Saga pattern**.
 
-4. **DAG Simplicity, Controller Power**  
-   The visual graph is always a DAG.
+- Forward actions and compensations are explicit
+- Compensations are modeled as standard activities
+- Compensation order is deterministic and reversed
+- There is no implicit rollback
+- There is no global transaction
 
-5. **Control Flow ≠ Data Flow**  
-   Control edges define order; data edges define bindings.
+Failure handling is **business logic**, not infrastructure behavior.
 
-6. **Dynamic Ports Are Derived**  
-   Ports are derived, never manually configured.
+---
 
-7. **Deterministic Orchestration Only**  
-   Temporal workflows contain no I/O or non-determinism.
+### 18.2 Canonical Truth
+The **Serverless Workflow DSL** is the canonical workflow representation.
 
-8. **Runtime-Agnostic Orchestration**  
-   Temporal orchestrates intent; runtime adapters implement execution.
+- It defines workflow semantics
+- It is stored verbatim
+- It is immutable once executed
 
-9. **Sub-Workflows Are Nodes**  
-   Sub-workflows are implemented as child workflows with explicit contracts.
+The visual graph, compiler output, and runtime metadata are projections.
 
-10. **Templates Are Not Logic**  
-    Templates interpolate values; controllers decide logic.
+---
 
-11. **ELK Owns Layout, Not Semantics**  
-    Layout is derived and disposable.
+### 18.3 Execution Truth
+**Temporal workflow history is the source of execution truth.**
 
-12. **Telemetry Is Mandatory**  
-    If it runs, it emits telemetry.
+If discrepancies exist between:
+- User interface
+- Databases
+- Observability systems
 
-13. **Compile Early, Fail Early**  
-    All validation happens before execution.
+Temporal history prevails.
 
-14. **Glue Over Reinvention**  
-    Adapt architecture to fit proven libraries.
+---
+
+### 18.4 Container-First, Not Container-Only
+Container execution is the default.
+
+- Host execution is an explicit, validated exception
+- Host execution is restricted to development scenarios
+- Runtime choice does not affect workflow semantics
+
+Execution environment is metadata, not logic.
+
+---
+
+### 18.5 Pydantic at All Boundaries
+Anything crossing a system boundary **MUST** be a Pydantic model.
+
+This includes:
+- API inputs and outputs
+- Activity inputs and results
+- Execution context
+- Template context
+- Runtime specifications
+
+Schemas are always derived, never handwritten.
+
+---
+
+### 18.6 DAG Simplicity, Controller Power
+The visual workflow graph is always a **Directed Acyclic Graph**.
+
+- No implicit cycles
+- No hidden control flow
+- No dynamic graph mutation
+
+Iteration, branching, retries, and fan-out are expressed via **controllers**, not graph topology.
+
+---
+
+### 18.7 Control Flow ≠ Data Flow
+Control flow and data flow are distinct and must never be conflated.
+
+- Control edges define execution order
+- Data edges define bindings and value propagation
+
+Changing one must not implicitly change the other.
+
+---
+
+### 18.8 Dynamic Ports Are Derived
+Ports are **derived**, never manually configured.
+
+- Derived from node definitions
+- Derived from input/output contracts
+- Deterministic and reproducible
+
+Manual port configuration is prohibited.
+
+---
+
+### 18.9 Deterministic Orchestration Only
+Temporal workflows contain **no non-determinism**.
+
+Workflow code MUST NOT:
+- Perform I/O
+- Access clocks directly
+- Generate randomness
+- Emit logs or metrics
+
+All side effects occur in activities or child workflows.
+
+---
+
+### 18.10 Runtime-Agnostic Orchestration
+Temporal orchestrates **intent**, not execution details.
+
+- Workflows express what should happen
+- Runtime adapters define how it happens
+- Runtime changes do not alter workflow semantics
+
+Orchestration logic must remain runtime-agnostic.
+
+---
+
+### 18.11 Sub-Workflows Are Nodes
+Sub-workflows are modeled as single nodes.
+
+- Implemented as Temporal child workflows
+- Explicit input and output contracts
+- Independent retries and telemetry
+- No shared mutable state
+
+Composition is explicit and observable.
+
+---
+
+### 18.12 Templates Are Not Logic
+Templates interpolate values only.
+
+- No branching
+- No conditionals
+- No implicit behavior
+
+All decision-making resides in controllers or workflow logic.
+
+---
+
+### 18.13 Layout Owns Layout, Not Semantics
+Graph layout is derived and disposable.
+
+- ELK controls layout
+- Layout metadata does not affect compilation
+- Layout metadata does not affect execution
+
+Semantics must never depend on layout.
+
+---
+
+### 18.14 Telemetry Is Mandatory
+If it runs, it emits telemetry.
+
+- Activities emit logs, metrics, and traces
+- Workflows rely on activity-level observability
+- Telemetry is append-only
+
+Silent execution is a defect.
+
+---
+
+### 18.15 Compile Early, Fail Early
+All validation occurs **before execution**.
+
+This includes:
+- Structural validation
+- Type validation
+- Contract validation
+- Static template validation
+
+Invalid workflows must never start.
+
+---
+
+### 18.16 Immutable Executions
+Executed workflows are immutable.
+
+- Partial reruns create new executions
+- Skips require explicit alternative workflows or compensations
+- Replay is for debugging only
+
+History is never rewritten.
+
+---
+
+### 18.17 Human Intervention Is Explicit
+Human actions that affect execution are first-class workflow events.
+
+They are modeled via:
+- Signals
+- Queries
+- Explicit state transitions
+
+User-interface-only overrides are prohibited.
+
+---
+
+### 18.18 Explicit Lineage
+Lineage is event-based and explicit.
+
+- Assets must be declared
+- Inputs and outputs must be named
+- Compensations emit lineage events
+
+Implicit lineage is not permitted.
+
+---
+
+### 18.19 Glue Over Reinvention
+The platform favors **composition over invention**.
+
+- Proven libraries are adapted, not reimplemented
+- Custom logic exists only where semantics require it
+- Infrastructure concerns do not leak into workflow meaning
+
+Reinvention requires justification.
+
+---
+
+### 18.20 Conservative by Default
+When trade-offs exist:
+- Reject hidden behavior
+- Reject implicit semantics
+- Reject convenience that obscures failure
+
+**Correctness and transparency take precedence.**
 
 ---
 
